@@ -5,10 +5,10 @@ import os
 from langchain.prompts import PromptTemplate
 from langchain.document_loaders import DirectoryLoader
 from langchain.vectorstores.chroma import Chroma
+from langchain.embeddings.openai import OpenAIEmbeddings
 
 # Chroma's client library for Python
 import chromadb
-from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
 
 from prepare_chroma import open_chroma, load_data
 
@@ -53,7 +53,11 @@ def main():
     
     # open chroma client
     chroma_client = chromadb.PersistentClient()
-    embedding_function = OpenAIEmbeddingFunction(api_key=os.environ.get('OPENAI_API_KEY'), model_name=EMBEDDING_MODEL)
+    embedding_function = OpenAIEmbeddings(
+        model="text-embedding-ada-002",
+    )
+
+    # embedding_function = OpenAIEmbeddingFunction(api_key=os.environ.get('OPENAI_API_KEY'), model_name=EMBEDDING_MODEL)
     
     #### pass over chroma to langchain ####
     wikipedia_content_chroma = Chroma(
