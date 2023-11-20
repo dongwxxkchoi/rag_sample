@@ -55,14 +55,14 @@ def df_to_chroma(df: pd.DataFrame, name: str):
             embeddings=df.content_vector.tolist(),
             documents=df.text.tolist()
         )
-    
+
     elif 'title' in name:
         collection = chroma_client.create_collection(name='wikipedia_title', embedding_function=embedding_function)
         collection.add(
             ids=df.vector_id.tolist(),
             embeddings=df.title_vector.tolist(),
             documents=df.title.tolist()
-        )    
+        )
 
     print("Insert completed")
 
@@ -71,6 +71,7 @@ def df_to_chroma(df: pd.DataFrame, name: str):
 def open_chroma():
     chroma_client = chromadb.PersistentClient(path="./chroma/")
     embedding_function = OpenAIEmbeddingFunction(api_key=os.environ.get('OPENAI_API_KEY'), model_name=EMBEDDING_MODEL)
+    # chroma_client.delete_collection(name="wikipedia_content")
     try:
         wikipedia_content_collection = chroma_client.get_collection(name='wikipedia_content', embedding_function=embedding_function)
         print("open content chroma db")
@@ -78,6 +79,7 @@ def open_chroma():
         load_data()
         article_df = process_data()
         wikipedia_content_collection = df_to_chroma(article_df, "wikipedia_content")
+
     try:
         wikipedia_title_collection = chroma_client.get_collection(name='wikipedia_content', embedding_function=embedding_function)
         print("open title chroma db")
@@ -86,5 +88,5 @@ def open_chroma():
             load_data()
             article_df = process_data()
         wikipedia_title_collection = df_to_chroma(article_df, "wikipedia_title")
-    
-    return wikipedia_content_collection, wikipedia_title_collection
+
+    return chroma_client, wikipedia_content_collection, wikipedia_title_collection

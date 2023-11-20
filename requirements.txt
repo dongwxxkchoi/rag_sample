@@ -1,0 +1,8 @@
+tiktoken
+langchain
+streamlit
+chromadb
+python
+pandas
+openai
+wget
