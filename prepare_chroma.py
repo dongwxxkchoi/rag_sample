@@ -25,7 +25,7 @@ def load_data():
 
 def process_data():
     print("Load data...")
-    article_df = pd.read_csv('data/vector_database_wikipedia_articles_embedded.csv').loc[:100]
+    article_df = pd.read_csv('data/vector_database_wikipedia_articles_embedded.csv')
     print("Data loaded")
 
     print("Process df...")
@@ -71,7 +71,8 @@ def df_to_chroma(df: pd.DataFrame, name: str):
 def open_chroma():
     chroma_client = chromadb.PersistentClient(path="./chroma/")
     embedding_function = OpenAIEmbeddingFunction(api_key=os.environ.get('OPENAI_API_KEY'), model_name=EMBEDDING_MODEL)
-    # chroma_client.delete_collection(name="wikipedia_content")
+    chroma_client.delete_collection(name="wikipedia_content")
+    chroma_client.delete_collection(name="wikipedia_title")
     try:
         wikipedia_content_collection = chroma_client.get_collection(name='wikipedia_content', embedding_function=embedding_function)
         print("open content chroma db")
@@ -89,4 +90,4 @@ def open_chroma():
             article_df = process_data()
         wikipedia_title_collection = df_to_chroma(article_df, "wikipedia_title")
 
-    return chroma_client, wikipedia_content_collection, wikipedia_title_collection
+    return chroma_client, [wikipedia_content_collection, wikipedia_title_collection]

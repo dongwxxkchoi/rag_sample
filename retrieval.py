@@ -48,18 +48,18 @@ def query_collection(collection: Chroma, query, max_results, dataframe):
     
     # return df
 
-def main():
+def chain_load_db():
     # load chroma db
-    chroma_client, wikipedia_content_collection, wikipedia_title_chroma = open_chroma()
-    df = load_data()
+    chroma_client, collections = open_chroma()
+    # wikipedia_content_collection, wikipedia_title_chroma = collections
     
-    # embedding_function = OpenAIEmbeddings(
-    #     model="text-embedding-ada-002",
-    # )
-    embedding_function = OpenAIEmbeddings(api_key=os.environ.get('OPENAI_API_KEY'))
+    # embedding function
+    embedding_function = OpenAIEmbeddings(
+                            api_key=os.environ.get('OPENAI_API_KEY'),
+                            model="text-embedding-ada-002",
+                        )
     
     #### pass over chroma to langchain ####
-    # in this process, the documents are gone
     wikipedia_content_chroma = Chroma(
         persist_directory="./chroma",
         client=chroma_client,
@@ -74,6 +74,7 @@ def main():
         embedding_function=embedding_function
     )
 
+    return wikipedia_content_chroma, chroma_client
     query = "Apple"
     results = wikipedia_content_chroma.similarity_search(query="apple", k=10, filter={})
     print(results)
@@ -83,5 +84,5 @@ def main():
 
     
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     chain_load_db()
