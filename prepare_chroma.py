@@ -40,6 +40,7 @@ def process_data():
 
     return article_df
 
+
 def df_to_chroma(df: pd.DataFrame, name: str):
     # PersistentClient는 chroma db를 파일에 저장함
     # EphmeralClient - 메모리에 저장
@@ -68,11 +69,10 @@ def df_to_chroma(df: pd.DataFrame, name: str):
 
     return collection
 
+
 def open_chroma():
     chroma_client = chromadb.PersistentClient(path="./chroma/")
     embedding_function = OpenAIEmbeddingFunction(api_key=os.environ.get('OPENAI_API_KEY'), model_name=EMBEDDING_MODEL)
-    chroma_client.delete_collection(name="wikipedia_content")
-    chroma_client.delete_collection(name="wikipedia_title")
     try:
         wikipedia_content_collection = chroma_client.get_collection(name='wikipedia_content', embedding_function=embedding_function)
         print("open content chroma db")
@@ -89,5 +89,6 @@ def open_chroma():
             load_data()
             article_df = process_data()
         wikipedia_title_collection = df_to_chroma(article_df, "wikipedia_title")
-
-    return chroma_client, [wikipedia_content_collection, wikipedia_title_collection]
+        
+    #, [wikipedia_content_collection, wikipedia_title_collection]
+    return chroma_client

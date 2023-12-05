@@ -2,16 +2,25 @@ import openai
 import pandas as pd
 import os
 
-from langchain.prompts import PromptTemplate
-from langchain.document_loaders import DirectoryLoader
-from langchain.vectorstores.chroma import Chroma
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
-
-# Chroma's client library for Python
 import chromadb
 
-from prepare_chroma import open_chroma, load_data
+from prepare_chroma_pdf import open_chroma
+# from prepare_chroma_sm import open_chroma
+
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores.chroma import Chroma
+
+from langchain.prompts import PromptTemplate
+from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
+from langchain.prompts import MessagesPlaceholder
+from langchain.schema.messages import SystemMessage
+from langchain.agents import AgentExecutor
+
+from langchain.agents.agent_toolkits import create_retriever_tool
+from langchain.agents.agent_toolkits import create_conversational_retrieval_agent
+from langchain.chat_models import ChatOpenAI
+
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 # Ignore unclosed SSL socket warnings - optional in case you get these errors
 import warnings
@@ -19,8 +28,8 @@ import warnings
 warnings.filterwarnings(action="ignore", message="unclosed", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning) 
 
-################ environment settings ################
-######################################################
+################ environment settings (for query embedding) ################
+############################################################################
 
 EMBEDDING_MODEL = "text-embedding-ada-002"
 api_key = os.environ.get('OPENAI_API_KEY')
@@ -34,23 +43,12 @@ else:
 ################ Chroma DB ################
 ###########################################
 
-def query_collection(collection: Chroma, query, max_results, dataframe):
-    # k: top-k, filter: metadata
-    results = collection.similarity_search(query, k=10, filter=None)
-    print(results)
-    # results = collection.query(query_texts=query, n_results=max_results, include=['distances']) 
-    # df = pd.DataFrame({
-    #             'id':results['ids'][0], 
-    #             'score':results['distances'][0],
-    #             'title': dataframe[dataframe.vector_id.isin(results['ids'][0])]['title'],
-    #             'content': dataframe[dataframe.vector_id.isin(results['ids'][0])]['text'],
-    #             })
-    
-    # return df
-
 def chain_load_db():
     # load chroma db
-    chroma_client, collections = open_chroma()
+    # chroma_client, collections = open_chroma()
+    # chroma_client = open_chroma()
+    chroma_client = chromadb.PersistentClient(path="./chroma")
+    
     # wikipedia_content_collection, wikipedia_title_chroma = collections
     
     # embedding function
@@ -60,29 +58,55 @@ def chain_load_db():
                         )
     
     #### pass over chroma to langchain ####
-    wikipedia_content_chroma = Chroma(
+    chroma = Chroma(
         persist_directory="./chroma",
         client=chroma_client,
-        collection_name="wikipedia_content",
+        collection_name="IR_collection",
         embedding_function=embedding_function
     )
 
-    wikipedia_title_chroma = Chroma(
-        persist_directory="./chroma",
-        client=chroma_client,
-        collection_name="wikipedia_title",
-        embedding_function=embedding_function
+    # make retriever
+    ## search_kwargs={"k": 5} -> top k 설정
+    retriever = chroma.as_retriever(search_kwargs={"k": 5})
+
+    ## make retriever setting
+    tool = create_retriever_tool(
+        retriever,
+        "search_IR",
+        "Searches and returns documents regarding the IR reports.",
+    )
+    tools = [tool]
+
+    # make llm
+    llm = ChatOpenAI(model_name="gpt-3.5-turbo-1106", temperature=.0)
+
+    # make prompt
+    ## SystemMessage 
+    ### A Message for priming AI behavior, usually passed in as the first of a sequence
+    ### of input messages.
+
+    system_message = SystemMessage(
+        content=(
+            "너는 레퍼런스 문서들로부터 정보를 얻어 나에게 대답을 해주는 챗봇이야"
+            "레퍼런스의 출처와 그 근거를 들어 나에게 답변을 해주면 돼"
+            "애널리스트들의 정보는 email을 포함해"
+        )
     )
 
-    return wikipedia_content_chroma, chroma_client
-    query = "Apple"
-    results = wikipedia_content_chroma.similarity_search(query="apple", k=10, filter={})
-    print(results)
-    # query_collection(wikipedia_content_chroma, query, 10, df)
+    prompt = OpenAIFunctionsAgent.create_prompt(
+        system_message=system_message,
+    )
     
-    #### query to chroma db ####
+    # set agent
+    agent = OpenAIFunctionsAgent(llm=llm, tools=tools, prompt=prompt)
+    agent_executor = AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,
+        return_intermediate_steps=True,
+    )
 
-    
+    return chroma, chroma_client, agent_executor
 
-# if __name__ == "__main__":
-#     chain_load_db()
+if __name__ == "__main__":
+    chain_load_db()
